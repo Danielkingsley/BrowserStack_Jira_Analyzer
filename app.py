@@ -242,9 +242,9 @@ if not jira_list:
     st.info("No Jira issues returned – check your JQL query or credentials.")
 else:
     col_m, col_u, col_t = st.columns(3)
+    col_t.metric("Total Jira Issues in Query",   len(jira_list))
     col_m.metric("Jira Mapped to Test Case",     (df_cmp["Status"] == "✅ Mapped").sum())
     col_u.metric("Jira NOT Mapped to Test Case", (df_cmp["Status"] == "❌ Not Mapped").sum())
-    col_t.metric("Total Jira Issues in Query",   len(jira_list))
 
     filter_opt = st.radio("Show", ["All", "✅ Mapped", "❌ Not Mapped"],
                           horizontal=True, label_visibility="collapsed")
