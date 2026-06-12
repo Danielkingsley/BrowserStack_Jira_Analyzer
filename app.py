@@ -1,4 +1,5 @@
 import io
+from collections import defaultdict
 import streamlit as st
 import pandas as pd
 from BrowserStackJiraAnalyzer import BrowserStackJiraAnalyzer
@@ -26,14 +27,15 @@ st.title("BrowserStack – Jira Mapping Dashboard")
 # ── controls inline at top ───────────────────────────────────────────
 col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
 with col1:
-    project_id = st.number_input("Project ID", value=22, step=1, label_visibility="visible")
+    project_id = st.number_input("Project ID", value=22, step=1)
 with col2:
     jql_query = st.text_input("JQL Query or Filter ID",
                               placeholder="e.g. project = PP AND sprint in openSprints()")
 with col3:
+    st.markdown("&nbsp;", unsafe_allow_html=True)  # push checkbox down to align
     use_cache = st.checkbox("Use Cache", value=True)
 with col4:
-    st.write("")  # vertical align
+    st.markdown("&nbsp;", unsafe_allow_html=True)  # push button down to align
     run = st.button("▶  Run Analysis", use_container_width=True, type="primary")
 
 st.divider()
@@ -129,4 +131,19 @@ st.download_button(
 
 # ── Raw data expander ────────────────────────────────────────────────
 with st.expander("Raw BrowserStack Test Cases"):
-    st.dataframe(pd.DataFrame(results), width='stretch', hide_index=True)
+    if results:
+        # build summary: one row per jira_id with test case details
+        jira_map = defaultdict(list)
+        for r in results:
+            jira_map[r["jira_id"]].append(r["identifier"])
+
+        raw_rows = []
+        for r in results:
+            raw_rows.append({
+                "Jira ID": r["jira_id"],
+                "Test Case Name": r["test_case_name"],
+                "Mapped Test Case Count": len(jira_map[r["jira_id"]]),
+                "Test Case ID": r["identifier"],
+            })
+        df_raw = pd.DataFrame(raw_rows).drop_duplicates().sort_values("Jira ID")
+        st.dataframe(df_raw, width='stretch', hide_index=True)
