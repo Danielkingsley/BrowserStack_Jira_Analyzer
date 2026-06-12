@@ -85,7 +85,7 @@ filter_opt = st.radio(
     horizontal=True, label_visibility="collapsed"
 )
 df_view = df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt]
-st.dataframe(df_view, use_container_width=True, hide_index=True)
+st.dataframe(df_view, width='stretch', hide_index=True)
 
 # ── Excel download ───────────────────────────────────────────────────
 buf = io.BytesIO()
@@ -101,4 +101,4 @@ st.download_button(
 
 # ── Raw data expander ────────────────────────────────────────────────
 with st.expander("Raw BrowserStack Test Cases"):
-    st.dataframe(pd.DataFrame(analyzer.results), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(analyzer.results), width='stretch', hide_index=True)
