@@ -60,7 +60,7 @@ if run:
     analyzer.get_all_test_cases_from_project(int(project_id),
                                              use_cache=use_cache,
                                              on_progress=on_progress)
-    bs_status.success(f"✅ BrowserStack test cases loaded ({analyzer.total_test_cases} total, {len(analyzer.results)} mapped rows)")
+    bs_status.success(f"✅ BrowserStack test cases loaded ({analyzer.total_test_cases} total, {len(set(r['identifier'] for r in analyzer.results))} mapped rows)")
 
     with st.spinner("Fetching Jira issues…"):
         try:
