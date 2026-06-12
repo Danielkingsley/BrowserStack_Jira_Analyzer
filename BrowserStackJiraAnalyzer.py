@@ -109,7 +109,7 @@ class BrowserStackJiraAnalyzer:
         total_count = data["info"]["count"]
         total_pages = int(total_count / PAGE_SIZE) + (1 if total_count % PAGE_SIZE else 0)
 
-        results, unmapped_count = [], []
+        results, unmapped_cases = [], []
         unique_identifiers = set()
 
         for page in range(1, total_pages + 1):
@@ -137,14 +137,14 @@ class BrowserStackJiraAnalyzer:
         self.unmapped_cases = unmapped_cases
         # total = all unique test cases seen (mapped + unmapped)
         self.total_test_cases = len(unique_identifiers)
-        self.unmapped_count = unmapped_count
+        self.unmapped_count = len(unmapped_cases)
         self.cache_timestamp = None  # fresh fetch          
 
         self.save_to_cache(project_id, {
             "results": results,
             "unmapped_cases": unmapped_cases,
             "total_test_cases": self.total_test_cases,
-            "unmapped_count": unmapped_count,
+            "unmapped_count": self.unmapped_count,
         })
         return results
 
