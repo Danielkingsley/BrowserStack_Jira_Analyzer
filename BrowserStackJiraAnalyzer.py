@@ -46,6 +46,7 @@ class BrowserStackJiraAnalyzer:
         self.results: list[dict] = []
         self.total_test_cases: int = 0
         self.unmapped_count: int = 0
+        self.cache_timestamp: str | None = None
         self._supabase = _supabase_client()
 
     # ------------------------------------------------------------------
@@ -64,9 +65,9 @@ class BrowserStackJiraAnalyzer:
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
 
-    def load_from_cache(self, project_id: int) -> dict | None:
+    def load_from_cache(self, project_id: int) -> tuple[dict | None, str | None]:
         if not self._supabase:
-            return None
+            return None, None
         try:
             response = (
                 self._supabase.table(SUPABASE_TABLE)
@@ -77,10 +78,10 @@ class BrowserStackJiraAnalyzer:
             if response.data:
                 row = response.data[0]
                 logger.info(f"Loaded cache (saved: {row['timestamp']})")
-                return json.loads(row["data"])
+                return json.loads(row["data"]), row['timestamp']
         except Exception as e:
             logger.error(f"Failed to load cache: {e}")
-        return None
+        return None, None
 
     # ------------------------------------------------------------------
     # BrowserStack
@@ -92,11 +93,12 @@ class BrowserStackJiraAnalyzer:
                                         on_progress=None):
         """Fetch all test cases. on_progress(page, total_pages) called each page."""
         if use_cache:
-            cached = self.load_from_cache(project_id)
+            cached, ts = self.load_from_cache(project_id)
             if cached:
                 self.results = cached.get("results", [])
                 self.total_test_cases = cached.get("total_test_cases", 0)
                 self.unmapped_count = cached.get("unmapped_count", 0)
+                self.cache_timestamp = ts
                 return self.results
 
         PAGE_SIZE = 300
@@ -133,6 +135,7 @@ class BrowserStackJiraAnalyzer:
         # total = all unique test cases seen (mapped + unmapped)
         self.total_test_cases = len(unique_identifiers)
         self.unmapped_count = unmapped_count
+        self.cache_timestamp = None  # fresh fetch          
 
         self.save_to_cache(project_id, {
             "results": results,
