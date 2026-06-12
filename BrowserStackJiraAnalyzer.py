@@ -3,7 +3,6 @@ import logging
 import os
 import requests
 import pandas as pd
-import streamlit as st
 from jira import JIRA
 from datetime import datetime
 from collections import defaultdict
@@ -12,25 +11,27 @@ from supabase import create_client, Client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def _secret(key: str) -> str:
     """Read from st.secrets first, fall back to env var."""
     try:
+        import streamlit as st
         return st.secrets[key]
     except Exception:
         return os.environ.get(key, "")
 
 
-JIRA_BASE_URL   = _secret("JIRA_BASE_URL")
-JIRA_USERNAME   = _secret("JIRA_USERNAME")
-JIRA_API_TOKEN  = _secret("JIRA_API_TOKEN")
+JIRA_BASE_URL    = _secret("JIRA_BASE_URL")
+JIRA_USERNAME    = _secret("JIRA_USERNAME")
+JIRA_API_TOKEN   = _secret("JIRA_API_TOKEN")
 
-BS_USERNAME     = _secret("BS_USERNAME")
-BS_API_KEY      = _secret("BS_API_KEY")
-BS_API_URL      = "https://test-management.browserstack.com/api/v2/projects/"
+BS_USERNAME      = _secret("BS_USERNAME")
+BS_API_KEY       = _secret("BS_API_KEY")
+BS_API_URL       = "https://test-management.browserstack.com/api/v2/projects/"
 
-SUPABASE_URL    = _secret("SUPABASE_URL")
-SUPABASE_KEY    = _secret("SUPABASE_KEY")
-SUPABASE_TABLE  = "browserstack_cache"
+SUPABASE_URL     = _secret("SUPABASE_URL")
+SUPABASE_KEY     = _secret("SUPABASE_SERVICE_KEY") or _secret("SUPABASE_KEY")
+SUPABASE_TABLE   = "browserstack_cache"
 
 
 def _supabase_client() -> Client | None:
@@ -40,7 +41,6 @@ def _supabase_client() -> Client | None:
 
 
 class BrowserStackJiraAnalyzer:
-    """Analyzer for BrowserStack test cases and Jira issues"""
 
     def __init__(self):
         self.results: list[dict] = []
@@ -53,7 +53,6 @@ class BrowserStackJiraAnalyzer:
     # ------------------------------------------------------------------
     def save_to_cache(self, project_id: int, data: dict):
         if not self._supabase:
-            logger.warning("Supabase not configured – skipping cache save")
             return
         try:
             payload = {
@@ -62,7 +61,6 @@ class BrowserStackJiraAnalyzer:
                 "data": json.dumps(data),
             }
             self._supabase.table(SUPABASE_TABLE).upsert(payload, on_conflict="project_id").execute()
-            logger.info("Cache saved to Supabase")
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
 
@@ -78,7 +76,7 @@ class BrowserStackJiraAnalyzer:
             )
             if response.data:
                 row = response.data[0]
-                logger.info(f"Loaded cache from Supabase (saved: {row['timestamp']})")
+                logger.info(f"Loaded cache (saved: {row['timestamp']})")
                 return json.loads(row["data"])
         except Exception as e:
             logger.error(f"Failed to load cache: {e}")
@@ -90,26 +88,33 @@ class BrowserStackJiraAnalyzer:
     def _get(self, url: str):
         return requests.get(url, auth=(BS_USERNAME, BS_API_KEY))
 
-    def get_all_test_cases_from_project(self, project_id: int, use_cache: bool = True):
+    def get_all_test_cases_from_project(self, project_id: int, use_cache: bool = True,
+                                        on_progress=None):
+        """Fetch all test cases. on_progress(page, total_pages) called each page."""
         if use_cache:
             cached = self.load_from_cache(project_id)
             if cached:
                 self.results = cached.get("results", [])
-                self.total_test_cases = cached.get("total_test_cases", len(self.results))
+                self.total_test_cases = cached.get("total_test_cases", 0)
                 self.unmapped_count = cached.get("unmapped_count", 0)
                 return self.results
 
         url = f"{BS_API_URL}PR-{project_id}/test-cases"
         data = self._get(url).json()
+        total_count = data["info"]["count"]
+        total_pages = int(total_count / 30) + (1 if total_count % 30 else 0)
 
         results, unmapped_count = [], 0
-        total_pages = int(data["info"]["count"] / 30) + 2
+        unique_identifiers = set()
 
         for page in range(1, total_pages + 1):
+            if on_progress:
+                on_progress(page, total_pages)
             page_data = self._get(f"{url}?p={page}").json()
             for tc in page_data.get("test_cases", []):
                 identifier = tc.get("identifier", "N/A")
                 title = tc.get("title", "N/A")
+                unique_identifiers.add(identifier)
                 if tc.get("issues"):
                     for issue in tc["issues"]:
                         jira_id = issue.get("jira_id")
@@ -124,7 +129,8 @@ class BrowserStackJiraAnalyzer:
                     unmapped_count += 1
 
         self.results = results
-        self.total_test_cases = len(results) + unmapped_count
+        # total = all unique test cases seen (mapped + unmapped)
+        self.total_test_cases = len(unique_identifiers)
         self.unmapped_count = unmapped_count
 
         self.save_to_cache(project_id, {
@@ -168,11 +174,8 @@ class BrowserStackJiraAnalyzer:
         bs_ids = set(item["jira_id"] for item in self.results)
         jira_ids = set(jira_query_list)
 
-        in_both = bs_ids & jira_ids
-        in_jira_only = jira_ids - bs_ids
-
         rows = []
-        for jira_id in sorted(in_both):
+        for jira_id in sorted(bs_ids & jira_ids):
             tcs = [i["identifier"] for i in self.results if i["jira_id"] == jira_id]
             rows.append({
                 "Jira ID": jira_id,
@@ -180,23 +183,22 @@ class BrowserStackJiraAnalyzer:
                 "Test Case Count": len(tcs),
                 "Test Cases": ", ".join(tcs),
             })
-        for jira_id in sorted(in_jira_only):
+        for jira_id in sorted(jira_ids - bs_ids):
             rows.append({
                 "Jira ID": jira_id,
                 "Status": "❌ Not Mapped",
                 "Test Case Count": 0,
                 "Test Cases": "",
             })
-
         return pd.DataFrame(rows)
 
     def get_stats(self) -> dict:
         jira_mapping = self.analyze_jira_mapping()
-        mapped = len(self.results)
+        mapped_tcs = len(set(i["identifier"] for i in self.results))
         return {
             "Total Test Cases": self.total_test_cases,
-            "Mapped to Jira": mapped,
+            "Mapped to Jira": mapped_tcs,
             "Unmapped": self.unmapped_count,
             "Unique Jira IDs": len(jira_mapping),
-            "Mapping %": round(mapped / self.total_test_cases * 100, 1) if self.total_test_cases else 0,
+            "Mapping %": round(mapped_tcs / self.total_test_cases * 100, 1) if self.total_test_cases else 0,
         }
