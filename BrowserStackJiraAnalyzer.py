@@ -3,6 +3,7 @@ import logging
 import os
 import requests
 import pandas as pd
+import streamlit as st
 from jira import JIRA
 from datetime import datetime
 from collections import defaultdict
@@ -11,16 +12,24 @@ from supabase import create_client, Client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-JIRA_BASE_URL   = os.environ.get("JIRA_BASE_URL", "")
-JIRA_USERNAME   = os.environ.get("JIRA_USERNAME", "")
-JIRA_API_TOKEN  = os.environ.get("JIRA_API_TOKEN", "")
+def _secret(key: str) -> str:
+    """Read from st.secrets first, fall back to env var."""
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.environ.get(key, "")
 
-BS_USERNAME     = os.environ.get("BS_USERNAME", "")
-BS_API_KEY      = os.environ.get("BS_API_KEY", "")
+
+JIRA_BASE_URL   = _secret("JIRA_BASE_URL")
+JIRA_USERNAME   = _secret("JIRA_USERNAME")
+JIRA_API_TOKEN  = _secret("JIRA_API_TOKEN")
+
+BS_USERNAME     = _secret("BS_USERNAME")
+BS_API_KEY      = _secret("BS_API_KEY")
 BS_API_URL      = "https://test-management.browserstack.com/api/v2/projects/"
 
-SUPABASE_URL    = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY    = os.environ.get("SUPABASE_KEY", "")
+SUPABASE_URL    = _secret("SUPABASE_URL")
+SUPABASE_KEY    = _secret("SUPABASE_KEY")
 SUPABASE_TABLE  = "browserstack_cache"
 
 
