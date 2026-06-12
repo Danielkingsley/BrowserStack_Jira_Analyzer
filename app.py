@@ -131,8 +131,8 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
 
-# ── Raw BrowserStack Test Cases ───────────────────────────────────────
-with st.expander("Raw BrowserStack Test Cases"):
+# ── "All Jira Mapped BrowserStack Test Cases ───────────────────────────────────────
+with st.expander(f"All Jira Mapped BrowserStack Test Cases - {stats["Unique Jira IDs"]}"):
     if results:
         bs_ids = sorted(set(r["jira_id"] for r in results))
         raw_rows = []
