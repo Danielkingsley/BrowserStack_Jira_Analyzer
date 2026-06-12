@@ -173,6 +173,9 @@ for key in ("stats", "df_cmp", "jira_list", "results", "unmapped_cases", "cache_
         st.session_state[key] = None
 
 if run:
+    if not jql_query.strip():
+        st.warning("Enable JQL is checked but no query was provided. Stopping...")
+        st.stop()
 
     analyzer  = BrowserStackJiraAnalyzer()
     bs_status = st.empty()
@@ -186,14 +189,11 @@ if run:
 
     jira_list = []
     if use_jql:
-        if not jql_query.strip():
-            st.warning("Enable JQL is checked but no query was provided. Skipping Jira comparison.")
-        else:
-            with st.spinner("Fetching Jira issues…"):
-                try:
-                    jira_list = analyzer.get_jira_issues_from_query(analyzer.get_jira_client(), jql_query)
-                except Exception as e:
-                    st.error(f"Jira connection failed: {e}")
+        with st.spinner("Fetching Jira issues…"):
+            try:
+                jira_list = analyzer.get_jira_issues_from_query(analyzer.get_jira_client(), jql_query)
+            except Exception as e:
+                st.error(f"Jira connection failed: {e}")
     else:
         st.warning("⚠️ JQL query is disabled. Running full BrowserStack analysis only — no Jira comparison will be shown.")
 
