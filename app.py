@@ -117,7 +117,7 @@ filter_opt = st.radio(
     horizontal=True, label_visibility="collapsed"
 )
 df_view = df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt]
-st.dataframe(df_view, width='stretch', column_config={"Test Case Count": st.column_config.NumberColumn("Test Case Count", alignment="left")}, hide_index=True)
+st.dataframe(df_view, width='stretch', column_config={"Test Case Count": st.column_config.NumberColumn("Test Case Count", alignment="center")}, hide_index=True)
 
 # ── Excel download ───────────────────────────────────────────────────
 buf = io.BytesIO()
@@ -147,4 +147,4 @@ with st.expander("Raw BrowserStack Test Cases"):
                 "Test Case Count":  len(seen),
                 "Test Cases":       ", ".join(sorted(seen.keys())),
             })
-        st.dataframe(pd.DataFrame(raw_rows), width='stretch', column_config={"Test Case Count": st.column_config.NumberColumn("Test Case Count", alignment="left")}, hide_index=True)
+        st.dataframe(pd.DataFrame(raw_rows), width='stretch', column_config={"Test Case Count": st.column_config.NumberColumn("Test Case Count", alignment="center")}, hide_index=True)
