@@ -142,26 +142,25 @@ st.download_button(
 )
 
 # ── Raw BrowserStack Test Cases ───────────────────────────────────────
-with st.expander("Raw BrowserStack Test Cases"):
+with st.expander("All BrowserStack Test Cases"):
     if results:
         jira_map = defaultdict(list)
         for r in results:
-            jira_map[r["jira_id"]].append(r["identifier"])
+            jira_map[r["jira_id"]].append(r)
 
-        seen = set()
         raw_rows = []
         for jira_id in sorted(jira_map.keys()):
-            tcs = sorted(set(jira_map[jira_id]))
-            for tc_id in tcs:
-                if (jira_id, tc_id) in seen:
-                    continue
-                seen.add((jira_id, tc_id))
-                tc_name = next((r["test_case_name"] for r in results
-                                if r["identifier"] == tc_id), "")
+            entries = jira_map[jira_id]
+            # deduplicate by identifier
+            seen_ids = {}
+            for r in entries:
+                seen_ids[r["identifier"]] = r["test_case_name"]
+            tc_count = len(seen_ids)
+            for tc_id, tc_name in sorted(seen_ids.items()):
                 raw_rows.append({
                     "Jira ID":               jira_id,
                     "Test Case Name":         tc_name,
-                    "Mapped Test Case Count": str(len(tcs)),
+                    "Mapped Test Case Count": str(tc_count),
                     "Test Case ID":           tc_id,
                 })
 
@@ -174,3 +173,4 @@ with st.expander("Raw BrowserStack Test Cases"):
                 "Mapped Test Case Count": st.column_config.TextColumn("Mapped Test Case Count", width="small"),
             }
         )
+
