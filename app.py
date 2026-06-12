@@ -60,7 +60,7 @@ if run:
     analyzer.get_all_test_cases_from_project(int(project_id),
                                              use_cache=use_cache,
                                              on_progress=on_progress)
-    bs_status.success(f"✅ BrowserStack test cases loaded ({len(analyzer.results)} mapped rows)")
+    bs_status.success(f"✅ BrowserStack test cases loaded ({analyzer.total_test_cases} total, {stats["Mapped to Jira"]} mapped rows)")
 
     with st.spinner("Fetching Jira issues…"):
         try:
@@ -86,10 +86,12 @@ jira_list = st.session_state.jira_list
 results   = st.session_state.results
 
 # ── BrowserStack KPIs ────────────────────────────────────────────────
+st.subheader("Overall Comparison")
+
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Total Test Cases", stats["Total Test Cases"])
-c2.metric("Mapped to Jira",   stats["Mapped to Jira"])
-c3.metric("Unmapped",         stats["Unmapped"])
+c2.metric("Total TC Mapped to Jira",   stats["Mapped to Jira"])
+c3.metric("Total Unmapped TC",         stats["Unmapped"])
 c4.metric("Unique Jira IDs",  stats["Unique Jira IDs"])
 c5.metric("Mapping %",        f"{stats['Mapping %']}%")
 
