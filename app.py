@@ -14,6 +14,9 @@ st.markdown("""
     #MainMenu, footer, header {visibility: hidden;}
     .block-container {padding: 1rem 2rem 1rem;}
     section[data-testid="stSidebar"] {min-width: 280px; max-width: 320px;}
+    /* hide +/- buttons on number input */
+    button[data-testid="stNumberInputStepUp"],
+    button[data-testid="stNumberInputStepDown"] {display: none;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,29 +34,54 @@ with st.sidebar:
 # ── main ─────────────────────────────────────────────────────────────
 st.title("BrowserStack – Jira Mapping Dashboard")
 
-if not run:
+# initialise session state keys
+for key in ("stats", "df_cmp", "jira_list", "results"):
+    if key not in st.session_state:
+        st.session_state[key] = None
+
+if run:
+    if not jql_query.strip():
+        st.warning("Please enter a JQL query or Filter ID.")
+        st.stop()
+
+    analyzer = BrowserStackJiraAnalyzer()
+
+    # progress placeholder for BS fetch
+    bs_status = st.empty()
+
+    def on_progress(page, total):
+        bs_status.info(f"Fetching BrowserStack test cases… page {page} / {total}")
+
+    analyzer.get_all_test_cases_from_project(int(project_id),
+                                             use_cache=use_cache,
+                                             on_progress=on_progress)
+    bs_status.success(f"✅ BrowserStack test cases loaded ({len(analyzer.results)} mapped rows)")
+
+    with st.spinner("Fetching Jira issues…"):
+        try:
+            jira_client = analyzer.get_jira_client()
+            jira_list   = analyzer.get_jira_issues_from_query(jira_client, jql_query)
+        except Exception as e:
+            st.error(f"Jira connection failed: {e}")
+            jira_list = []
+
+    # persist to session state so download button doesn't wipe data
+    st.session_state.stats    = analyzer.get_stats()
+    st.session_state.df_cmp   = analyzer.compare_with_jira_query(jira_list)
+    st.session_state.jira_list = jira_list
+    st.session_state.results  = analyzer.results
+
+# ── render (uses session state so download button rerun is safe) ──────
+if st.session_state.stats is None:
     st.info("👈 Enter your JQL query in the sidebar and click **Run Analysis** to begin.")
     st.stop()
 
-if not jql_query.strip():
-    st.warning("Please enter a JQL query or Filter ID.")
-    st.stop()
-
-analyzer = BrowserStackJiraAnalyzer()
-
-with st.spinner("Fetching BrowserStack test cases…"):
-    analyzer.get_all_test_cases_from_project(int(project_id), use_cache=use_cache)
-
-with st.spinner("Fetching Jira issues…"):
-    try:
-        jira_client = analyzer.get_jira_client()
-        jira_list   = analyzer.get_jira_issues_from_query(jira_client, jql_query)
-    except Exception as e:
-        st.error(f"Jira connection failed: {e}")
-        jira_list = []
+stats    = st.session_state.stats
+df_cmp   = st.session_state.df_cmp
+jira_list = st.session_state.jira_list
+results  = st.session_state.results
 
 # ── BrowserStack KPIs ────────────────────────────────────────────────
-stats = analyzer.get_stats()
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Total Test Cases", stats["Total Test Cases"])
 c2.metric("Mapped to Jira",   stats["Mapped to Jira"])
@@ -69,8 +97,6 @@ st.subheader("Jira Comparison")
 if not jira_list:
     st.info("No Jira issues returned – check your JQL query or credentials.")
     st.stop()
-
-df_cmp = analyzer.compare_with_jira_query(jira_list)
 
 mapped_count   = (df_cmp["Status"] == "✅ Mapped").sum()
 unmapped_count = (df_cmp["Status"] == "❌ Not Mapped").sum()
@@ -91,7 +117,7 @@ st.dataframe(df_view, width='stretch', hide_index=True)
 buf = io.BytesIO()
 with pd.ExcelWriter(buf, engine="openpyxl") as writer:
     df_cmp.to_excel(writer, sheet_name="Jira Comparison", index=False)
-    pd.DataFrame(analyzer.results).to_excel(writer, sheet_name="Raw Data", index=False)
+    pd.DataFrame(results).to_excel(writer, sheet_name="Raw Data", index=False)
 st.download_button(
     "⬇ Download Excel",
     data=buf.getvalue(),
@@ -101,4 +127,4 @@ st.download_button(
 
 # ── Raw data expander ────────────────────────────────────────────────
 with st.expander("Raw BrowserStack Test Cases"):
-    st.dataframe(pd.DataFrame(analyzer.results), width='stretch', hide_index=True)
+    st.dataframe(pd.DataFrame(results), width='stretch', hide_index=True)
