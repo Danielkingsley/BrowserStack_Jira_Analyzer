@@ -115,7 +115,14 @@ filter_opt = st.radio(
     horizontal=True, label_visibility="collapsed"
 )
 df_view = df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt]
-st.dataframe(df_view, width='stretch', hide_index=True)
+st.dataframe(
+    df_view,
+    width='stretch',
+    hide_index=True,
+    column_config={
+        "Test Case Count": st.column_config.NumberColumn("Test Case Count", width="small"),
+    }
+)
 
 # ── Excel download ───────────────────────────────────────────────────
 buf = io.BytesIO()
@@ -132,18 +139,36 @@ st.download_button(
 # ── Raw data expander ────────────────────────────────────────────────
 with st.expander("Raw BrowserStack Test Cases"):
     if results:
-        # build summary: one row per jira_id with test case details
         jira_map = defaultdict(list)
         for r in results:
             jira_map[r["jira_id"]].append(r["identifier"])
 
+        # group by Jira ID: one row per unique (jira_id, identifier)
+        seen = set()
         raw_rows = []
-        for r in results:
-            raw_rows.append({
-                "Jira ID": r["jira_id"],
-                "Test Case Name": r["test_case_name"],
-                "Mapped Test Case Count": len(jira_map[r["jira_id"]]),
-                "Test Case ID": r["identifier"],
-            })
-        df_raw = pd.DataFrame(raw_rows).drop_duplicates().sort_values("Jira ID")
-        st.dataframe(df_raw, width='stretch', hide_index=True)
+        for jira_id in sorted(jira_map.keys()):
+            tcs = sorted(set(jira_map[jira_id]))
+            for tc_id in tcs:
+                key = (jira_id, tc_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+                # find test case name
+                tc_name = next((r["test_case_name"] for r in results
+                                if r["identifier"] == tc_id), "")
+                raw_rows.append({
+                    "Jira ID": jira_id,
+                    "Test Case Name": tc_name,
+                    "Mapped Test Case Count": len(tcs),
+                    "Test Case ID": tc_id,
+                })
+
+        df_raw = pd.DataFrame(raw_rows)
+        st.dataframe(
+            df_raw,
+            width='stretch',
+            hide_index=True,
+            column_config={
+                "Mapped Test Case Count": st.column_config.NumberColumn("Mapped Test Case Count", width="small"),
+            }
+        )
