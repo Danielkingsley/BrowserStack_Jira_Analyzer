@@ -149,13 +149,16 @@ with help_col:
         show_help()
 
 # ── controls ──────────────────────────────────────────────────────────
-col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+col1, col2, col3, col4, col5 = st.columns([1, 3, 1, 1, 1])
 with col1:
     project_id = st.number_input("Project ID", value=22, step=1)
 with col2:
     jql_query = st.text_input("JQL Query or Filter ID",
                               placeholder="e.g. project = PP AND sprint in openSprints()")
 with col3:
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+    use_jql   = st.checkbox("Enable JQL", value=True)
+with col4:
     st.markdown("&nbsp;", unsafe_allow_html=True)
     use_cache = st.checkbox("Use Cache", value=True)
 with col4:
@@ -165,14 +168,11 @@ with col4:
 st.divider()
 
 # ── session state ─────────────────────────────────────────────────────
-for key in ("stats", "df_cmp", "jira_list", "results", "cache_ts"):
+for key in ("stats", "df_cmp", "jira_list", "results", "unmapped_cases", "cache_ts"):
     if key not in st.session_state:
         st.session_state[key] = None
 
 if run:
-    if not jql_query.strip():
-        st.warning("Please enter a JQL query or Filter ID.")
-        st.stop()
 
     analyzer  = BrowserStackJiraAnalyzer()
     bs_status = st.empty()
@@ -184,18 +184,25 @@ if run:
     mapped_unique = len(set(r["identifier"] for r in analyzer.results))
     bs_status.success(f"✅ BrowserStack test cases loaded ({analyzer.total_test_cases} total, {mapped_unique} mapped)")
 
-    with st.spinner("Fetching Jira issues…"):
-        try:
-            jira_list = analyzer.get_jira_issues_from_query(analyzer.get_jira_client(), jql_query)
-        except Exception as e:
-            st.error(f"Jira connection failed: {e}")
-            jira_list = []
+    jira_list = []
+    if use_jql:
+        if not jql_query.strip():
+            st.warning("Enable JQL is checked but no query was provided. Skipping Jira comparison.")
+        else:
+            with st.spinner("Fetching Jira issues…"):
+                try:
+                    jira_list = analyzer.get_jira_issues_from_query(analyzer.get_jira_client(), jql_query)
+                except Exception as e:
+                    st.error(f"Jira connection failed: {e}")
+    else:
+        st.warning("⚠️ JQL query is disabled. Running full BrowserStack analysis only — no Jira comparison will be shown.")
 
-    st.session_state.stats    = analyzer.get_stats()
-    st.session_state.df_cmp   = analyzer.compare_with_jira_query(jira_list)
-    st.session_state.jira_list = jira_list
-    st.session_state.results  = analyzer.results
-    st.session_state.cache_ts = analyzer.cache_timestamp
+    st.session_state.stats         = analyzer.get_stats()
+    st.session_state.df_cmp        = analyzer.compare_with_jira_query(jira_list)
+    st.session_state.jira_list     = jira_list
+    st.session_state.results       = analyzer.results
+    st.session_state.unmapped_cases = analyzer.unmapped_cases
+    st.session_state.cache_ts      = analyzer.cache_timestamp
 
 # ── render ────────────────────────────────────────────────────────────
 if st.session_state.stats is None:
@@ -206,6 +213,7 @@ stats     = st.session_state.stats
 df_cmp    = st.session_state.df_cmp
 jira_list = st.session_state.jira_list
 results   = st.session_state.results
+unmapped_cases = st.session_state.unmapped_cases
 cache_ts  = st.session_state.cache_ts
 
 # ── cache info card ───────────────────────────────────────────────────
@@ -251,11 +259,14 @@ else:
     show_df(df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt])
 
     # Excel export
-    df_raw = build_raw_df(results)
+    df_raw     = build_raw_df(results)
+    df_unmapped = pd.DataFrame(unmapped_cases or [], columns=["identifier", "test_case_name"])\
+                    .rename(columns={"identifier": "Test Case ID", "test_case_name": "Test Case Name"})
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         df_cmp.to_excel(writer, sheet_name="Jira Comparison", index=False)
         df_raw.to_excel(writer, sheet_name="All BS Mapped Test Cases", index=False)
+        df_unmapped.to_excel(writer, sheet_name="Unmapped Test Cases", index=False)
     st.download_button("⬇ Download Excel", data=buf.getvalue(),
                        file_name="jira_bs_comparison.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
