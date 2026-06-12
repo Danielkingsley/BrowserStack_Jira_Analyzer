@@ -14,17 +14,18 @@ st.markdown("""
 <style>
     #MainMenu, footer, header {visibility: hidden;}
     .block-container {padding: 1rem 2rem 1rem;}
-    /* hide sidebar toggle arrow */
     button[data-testid="collapsedControl"] {display: none;}
-    /* hide +/- buttons on number input */
     button[data-testid="stNumberInputStepUp"],
     button[data-testid="stNumberInputStepDown"] {display: none;}
+    /* center-align columns by header name */
+    [data-testid="stDataFrameResizable"] th:nth-child(3),
+    [data-testid="stDataFrameResizable"] td:nth-child(3) {text-align: center !important;}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("BrowserStack – Jira Mapping Dashboard")
 
-# ── controls inline at top ───────────────────────────────────────────
+# ── controls ─────────────────────────────────────────────────────────
 col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
 with col1:
     project_id = st.number_input("Project ID", value=22, step=1)
@@ -32,10 +33,10 @@ with col2:
     jql_query = st.text_input("JQL Query or Filter ID",
                               placeholder="e.g. project = PP AND sprint in openSprints()")
 with col3:
-    st.markdown("&nbsp;", unsafe_allow_html=True)  # push checkbox down to align
+    st.markdown("&nbsp;", unsafe_allow_html=True)
     use_cache = st.checkbox("Use Cache", value=True)
 with col4:
-    st.markdown("&nbsp;", unsafe_allow_html=True)  # push button down to align
+    st.markdown("&nbsp;", unsafe_allow_html=True)
     run = st.button("▶  Run Analysis", use_container_width=True, type="primary")
 
 st.divider()
@@ -51,7 +52,6 @@ if run:
         st.stop()
 
     analyzer = BrowserStackJiraAnalyzer()
-
     bs_status = st.empty()
 
     def on_progress(page, total):
@@ -115,12 +115,17 @@ filter_opt = st.radio(
     horizontal=True, label_visibility="collapsed"
 )
 df_view = df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt]
+
+# center-align Test Case Count by converting to str with padding
+df_display = df_view.copy()
+df_display["Test Case Count"] = df_display["Test Case Count"].apply(lambda x: str(x))
+
 st.dataframe(
-    df_view,
+    df_display,
     width='stretch',
     hide_index=True,
     column_config={
-        "Test Case Count": st.column_config.NumberColumn("Test Case Count", width="small"),
+        "Test Case Count": st.column_config.TextColumn("Test Case Count", width="small"),
     }
 )
 
@@ -136,31 +141,28 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
 
-# ── Raw data expander ────────────────────────────────────────────────
+# ── Raw BrowserStack Test Cases ───────────────────────────────────────
 with st.expander("Raw BrowserStack Test Cases"):
     if results:
         jira_map = defaultdict(list)
         for r in results:
             jira_map[r["jira_id"]].append(r["identifier"])
 
-        # group by Jira ID: one row per unique (jira_id, identifier)
         seen = set()
         raw_rows = []
         for jira_id in sorted(jira_map.keys()):
             tcs = sorted(set(jira_map[jira_id]))
             for tc_id in tcs:
-                key = (jira_id, tc_id)
-                if key in seen:
+                if (jira_id, tc_id) in seen:
                     continue
-                seen.add(key)
-                # find test case name
+                seen.add((jira_id, tc_id))
                 tc_name = next((r["test_case_name"] for r in results
                                 if r["identifier"] == tc_id), "")
                 raw_rows.append({
-                    "Jira ID": jira_id,
-                    "Test Case Name": tc_name,
-                    "Mapped Test Case Count": len(tcs),
-                    "Test Case ID": tc_id,
+                    "Jira ID":               jira_id,
+                    "Test Case Name":         tc_name,
+                    "Mapped Test Case Count": str(len(tcs)),
+                    "Test Case ID":           tc_id,
                 })
 
         df_raw = pd.DataFrame(raw_rows)
@@ -169,6 +171,6 @@ with st.expander("Raw BrowserStack Test Cases"):
             width='stretch',
             hide_index=True,
             column_config={
-                "Mapped Test Case Count": st.column_config.NumberColumn("Mapped Test Case Count", width="small"),
+                "Mapped Test Case Count": st.column_config.TextColumn("Mapped Test Case Count", width="small"),
             }
         )
