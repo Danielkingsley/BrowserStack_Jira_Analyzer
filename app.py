@@ -115,19 +115,7 @@ filter_opt = st.radio(
     horizontal=True, label_visibility="collapsed"
 )
 df_view = df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt]
-
-# center-align Test Case Count by converting to str with padding
-df_display = df_view.copy()
-df_display["Test Case Count"] = df_display["Test Case Count"].apply(lambda x: str(x))
-
-st.dataframe(
-    df_display,
-    width='stretch',
-    hide_index=True,
-    column_config={
-        "Test Case Count": st.column_config.TextColumn("Test Case Count", width="small"),
-    }
-)
+st.dataframe(df_view, width='stretch', hide_index=True)
 
 # ── Excel download ───────────────────────────────────────────────────
 buf = io.BytesIO()
@@ -142,35 +130,19 @@ st.download_button(
 )
 
 # ── Raw BrowserStack Test Cases ───────────────────────────────────────
-with st.expander("All BrowserStack Test Cases"):
+with st.expander("Raw BrowserStack Test Cases"):
     if results:
-        jira_map = defaultdict(list)
-        for r in results:
-            jira_map[r["jira_id"]].append(r)
-
+        bs_ids = sorted(set(r["jira_id"] for r in results))
         raw_rows = []
-        for jira_id in sorted(jira_map.keys()):
-            entries = jira_map[jira_id]
+        for jira_id in bs_ids:
+            tcs = [i for i in results if i["jira_id"] == jira_id]
             # deduplicate by identifier
-            seen_ids = {}
-            for r in entries:
-                seen_ids[r["identifier"]] = r["test_case_name"]
-            tc_count = len(seen_ids)
-            for tc_id, tc_name in sorted(seen_ids.items()):
-                raw_rows.append({
-                    "Jira ID":               jira_id,
-                    "Test Case Name":         tc_name,
-                    "Mapped Test Case Count": str(tc_count),
-                    "Test Case ID":           tc_id,
-                })
-
-        df_raw = pd.DataFrame(raw_rows)
-        st.dataframe(
-            df_raw,
-            width='stretch',
-            hide_index=True,
-            column_config={
-                "Mapped Test Case Count": st.column_config.TextColumn("Mapped Test Case Count", width="small"),
-            }
-        )
-
+            seen = {}
+            for r in tcs:
+                seen[r["identifier"]] = r["test_case_name"]
+            raw_rows.append({
+                "Jira ID":          jira_id,
+                "Test Case Count":  len(seen),
+                "Test Cases":       ", ".join(sorted(seen.keys())),
+            })
+        st.dataframe(pd.DataFrame(raw_rows), width='stretch', hide_index=True)
