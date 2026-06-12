@@ -45,6 +45,7 @@ class BrowserStackJiraAnalyzer:
     def __init__(self):
         self.results: list[dict] = []
         self.total_test_cases: int = 0
+        self.unmapped_cases: list[dict] = []
         self.unmapped_count: int = 0
         self.cache_timestamp: str | None = None
         self._supabase = _supabase_client()
@@ -96,6 +97,7 @@ class BrowserStackJiraAnalyzer:
             cached, ts = self.load_from_cache(project_id)
             if cached:
                 self.results = cached.get("results", [])
+                self.unmapped_cases = cached.get("unmapped_cases", [])
                 self.total_test_cases = cached.get("total_test_cases", 0)
                 self.unmapped_count = cached.get("unmapped_count", 0)
                 self.cache_timestamp = ts
@@ -107,7 +109,7 @@ class BrowserStackJiraAnalyzer:
         total_count = data["info"]["count"]
         total_pages = int(total_count / PAGE_SIZE) + (1 if total_count % PAGE_SIZE else 0)
 
-        results, unmapped_count = [], 0
+        results, unmapped_count = [], []
         unique_identifiers = set()
 
         for page in range(1, total_pages + 1):
@@ -129,9 +131,10 @@ class BrowserStackJiraAnalyzer:
                                 "issue_type": issue.get("issue_type"),
                             })
                 else:
-                    unmapped_count += 1
+                    unmapped.append({"identifier": identifier, "test_case_name": title})
 
         self.results = results
+        self.unmapped_cases = unmapped
         # total = all unique test cases seen (mapped + unmapped)
         self.total_test_cases = len(unique_identifiers)
         self.unmapped_count = unmapped_count
@@ -139,6 +142,7 @@ class BrowserStackJiraAnalyzer:
 
         self.save_to_cache(project_id, {
             "results": results,
+            "unmapped_cases": unmapped,
             "total_test_cases": self.total_test_cases,
             "unmapped_count": unmapped_count,
         })
