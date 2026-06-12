@@ -99,10 +99,11 @@ class BrowserStackJiraAnalyzer:
                 self.unmapped_count = cached.get("unmapped_count", 0)
                 return self.results
 
+        PAGE_SIZE = 300
         url = f"{BS_API_URL}PR-{project_id}/test-cases"
-        data = self._get(url).json()
+        data = self._get(f"{url}?page_size={PAGE_SIZE}").json()
         total_count = data["info"]["count"]
-        total_pages = int(total_count / 30) + (1 if total_count % 30 else 0)
+        total_pages = int(total_count / PAGE_SIZE) + (1 if total_count % PAGE_SIZE else 0)
 
         results, unmapped_count = [], 0
         unique_identifiers = set()
@@ -110,7 +111,7 @@ class BrowserStackJiraAnalyzer:
         for page in range(1, total_pages + 1):
             if on_progress:
                 on_progress(page, total_pages)
-            page_data = self._get(f"{url}?p={page}").json()
+            page_data = self._get(f"{url}?page_size={PAGE_SIZE}&p={page}").json()
             for tc in page_data.get("test_cases", []):
                 identifier = tc.get("identifier", "N/A")
                 title = tc.get("title", "N/A")
