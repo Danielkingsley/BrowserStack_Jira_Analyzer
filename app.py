@@ -217,7 +217,7 @@ if cache_ts:
     except Exception:
         st.info("📦 Showing cached data. Uncheck **Use Cache** and re-run to fetch fresh data.")
 else:
-    st.success("🔄 Showing live data fetched just now.")
+    st.info("🔄 Showing live data fetched just now.")
 
 # ── BrowserStack KPIs ─────────────────────────────────────────────────
 st.subheader("Overall Comparison")
@@ -235,22 +235,6 @@ jira_col1, jira_col2, jira_col3 = st.columns([4, 1, 2])
 with jira_col1:
     st.subheader("Jira Comparison")
 with jira_col2:
-    with st.popover("ℹ️ Help"):
-        st.markdown("""
-**JQL Query** — Enter a Jira Query Language expression to fetch issues.
-
-**Examples:**
-- `project = PP AND sprint in openSprints()`
-- `project = PP AND issuetype = Story`
-- `filter = 12345` *(use a saved filter ID)*
-
-**Toggle** — Use the checkbox to show/hide the Jira Comparison section without re-running.
-
-The table compares your Jira issues against BrowserStack test cases:
-- ✅ **Mapped** — Jira issue has at least one linked test case
-- ❌ **Not Mapped** — Jira issue has no test cases in BrowserStack
-        """)
-with jira_col3:
     show_jira = st.checkbox("Show Jira Comparison", value=True)
 
 if show_jira:
