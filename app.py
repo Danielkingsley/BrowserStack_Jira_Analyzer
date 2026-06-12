@@ -147,4 +147,4 @@ with st.expander("Raw BrowserStack Test Cases"):
                 "Test Case Count":  len(seen),
                 "Test Cases":       ", ".join(sorted(seen.keys())),
             })
-        st.dataframe(pd.DataFrame(raw_rows), width='stretch', hide_index=True)
+        st.dataframe(pd.DataFrame(raw_rows), width='stretch', column_config={"Test Case Count": st.column_config.NumberColumn("Test Case Count", alignment="left"), hide_index=True)
