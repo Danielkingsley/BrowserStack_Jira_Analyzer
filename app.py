@@ -23,7 +23,99 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("BrowserStack – Jira Mapping Dashboard")
+# ── How to Use dialog ───────────────────────────────────────────
+@st.dialog("📖 How to Use", width="large")
+def show_help():
+    st.markdown("""
+### Overview
+This dashboard connects **BrowserStack Test Management** with **Jira** to show you which
+Jira issues have linked test cases and which ones don’t.
+
+---
+
+### Step 1 — Project ID
+Enter your BrowserStack project ID in the **Project ID** field.
+This is the numeric ID of your BrowserStack Test Management project (e.g. `22` maps to project `PR-22`).
+
+---
+
+### Step 2 — JQL Query or Filter ID
+Enter a **Jira Query Language (JQL)** expression or a saved **Filter ID** to define which Jira issues to compare against.
+
+| Type | Example |
+|---|---|
+| Open sprint | `project = PP AND sprint in openSprints()` |
+| Issue type | `project = PP AND issuetype = Story` |
+| Specific sprint | `project = PP AND sprint = "Sprint 42"` |
+| Multiple types | `project = PP AND issuetype in (Story, Bug)` |
+| Saved filter | `filter = 12345` |
+
+> **Tip:** You can copy a filter ID from Jira → Filters → View all filters → click your filter → the number in the URL is the filter ID.
+
+---
+
+### Step 3 — Use Cache
+The **Use Cache** checkbox controls whether BrowserStack data is loaded from Supabase cache or fetched fresh from the API.
+
+| Setting | Behaviour |
+|---|---|
+| ✅ Checked (default) | Loads previously cached BrowserStack test cases instantly |
+| ❌ Unchecked | Fetches live data from BrowserStack API (slower, up to date) |
+
+The cache info card below the controls shows **when** the data was last fetched and **how old** it is.
+Uncheck and re-run whenever you’ve added or updated test cases in BrowserStack.
+
+---
+
+### Step 4 — Run Analysis
+Click **▶ Run Analysis** to:
+1. Load BrowserStack test cases (from cache or API)
+2. Fetch Jira issues matching your JQL query
+3. Compare them and display results
+
+---
+
+### Reading the Dashboard
+
+**BrowserStack KPIs (top row)**
+| Metric | Meaning |
+|---|---|
+| Total Test Cases | All unique test cases in the BrowserStack project |
+| Mapped to Jira | Test cases that have at least one Jira issue linked |
+| Unmapped | Test cases with no Jira link at all |
+| Unique Jira IDs | Number of distinct Jira tickets referenced across all test cases |
+| Mapping % | Percentage of test cases that are mapped to Jira |
+
+**Jira Comparison table**
+| Column | Meaning |
+|---|---|
+| Jira ID | The Jira issue key (e.g. `PP-123`) |
+| Status | ✅ Mapped = has test cases, ❌ Not Mapped = no test cases |
+| Test Case Count | How many BrowserStack test cases are linked to this Jira issue |
+| Test Cases | Comma-separated list of BrowserStack test case IDs |
+
+Use the **All / ✅ Mapped / ❌ Not Mapped** filter to narrow the view.
+
+**Raw BrowserStack Test Cases (expandable)**
+Shows all Jira-linked test cases grouped by Jira ID — regardless of your JQL query.
+Useful for a full audit of what’s mapped in BrowserStack.
+
+---
+
+### Downloading Data
+Click **⬇ Download Excel** to export:
+- **Sheet 1 — Jira Comparison:** the full comparison table
+- **Sheet 2 — Raw Data:** all BrowserStack test case ↔ Jira mappings
+    """)
+
+title_col, help_col = st.columns([9, 1])
+with title_col:
+    st.title("BrowserStack – Jira Mapping Dashboard")
+with help_col:
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+    if st.button("📖 How to Use", use_container_width=True):
+        show_help()
 
 # ── controls ─────────────────────────────────────────────────────────
 col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
