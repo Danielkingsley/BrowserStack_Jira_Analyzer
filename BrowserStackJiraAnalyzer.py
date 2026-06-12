@@ -131,10 +131,10 @@ class BrowserStackJiraAnalyzer:
                                 "issue_type": issue.get("issue_type"),
                             })
                 else:
-                    unmapped.append({"identifier": identifier, "test_case_name": title})
+                    unmapped_cases.append({"identifier": identifier, "test_case_name": title})
 
         self.results = results
-        self.unmapped_cases = unmapped
+        self.unmapped_cases = unmapped_cases
         # total = all unique test cases seen (mapped + unmapped)
         self.total_test_cases = len(unique_identifiers)
         self.unmapped_count = unmapped_count
@@ -142,7 +142,7 @@ class BrowserStackJiraAnalyzer:
 
         self.save_to_cache(project_id, {
             "results": results,
-            "unmapped_cases": unmapped,
+            "unmapped_cases": unmapped_cases,
             "total_test_cases": self.total_test_cases,
             "unmapped_count": unmapped_count,
         })
