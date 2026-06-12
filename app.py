@@ -237,28 +237,28 @@ with jira_col1:
 # with jira_col2:
 #    show_jira = st.checkbox("Show Jira Comparison", value=True)
 
-if show_jira:
-    if not jira_list:
-        st.info("No Jira issues returned – check your JQL query or credentials.")
-    else:
-        col_m, col_u, col_t = st.columns(3)
-        col_m.metric("Jira Mapped to Test Case",     (df_cmp["Status"] == "✅ Mapped").sum())
-        col_u.metric("Jira NOT Mapped to Test Case", (df_cmp["Status"] == "❌ Not Mapped").sum())
-        col_t.metric("Total Jira Issues in Query",   len(jira_list))
+# if show_jira:
+if not jira_list:
+    st.info("No Jira issues returned – check your JQL query or credentials.")
+else:
+    col_m, col_u, col_t = st.columns(3)
+    col_m.metric("Jira Mapped to Test Case",     (df_cmp["Status"] == "✅ Mapped").sum())
+    col_u.metric("Jira NOT Mapped to Test Case", (df_cmp["Status"] == "❌ Not Mapped").sum())
+    col_t.metric("Total Jira Issues in Query",   len(jira_list))
 
-        filter_opt = st.radio("Show", ["All", "✅ Mapped", "❌ Not Mapped"],
-                              horizontal=True, label_visibility="collapsed")
-        show_df(df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt])
+    filter_opt = st.radio("Show", ["All", "✅ Mapped", "❌ Not Mapped"],
+                          horizontal=True, label_visibility="collapsed")
+    show_df(df_cmp if filter_opt == "All" else df_cmp[df_cmp["Status"] == filter_opt])
 
-        # Excel export
-        df_raw = build_raw_df(results)
-        buf = io.BytesIO()
-        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-            df_cmp.to_excel(writer, sheet_name="Jira Comparison", index=False)
-            df_raw.to_excel(writer, sheet_name="All BS Mapped Test Cases", index=False)
-        st.download_button("⬇ Download Excel", data=buf.getvalue(),
-                           file_name="jira_bs_comparison.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    # Excel export
+    df_raw = build_raw_df(results)
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df_cmp.to_excel(writer, sheet_name="Jira Comparison", index=False)
+        df_raw.to_excel(writer, sheet_name="All BS Mapped Test Cases", index=False)
+    st.download_button("⬇ Download Excel", data=buf.getvalue(),
+                       file_name="jira_bs_comparison.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 st.divider()
 
