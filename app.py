@@ -6,35 +6,39 @@ from BrowserStackJiraAnalyzer import BrowserStackJiraAnalyzer
 st.set_page_config(
     page_title="BrowserStack – Jira Dashboard",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
 <style>
     #MainMenu, footer, header {visibility: hidden;}
     .block-container {padding: 1rem 2rem 1rem;}
-    section[data-testid="stSidebar"] {min-width: 280px; max-width: 320px;}
+    /* hide sidebar toggle arrow */
+    button[data-testid="collapsedControl"] {display: none;}
     /* hide +/- buttons on number input */
     button[data-testid="stNumberInputStepUp"],
     button[data-testid="stNumberInputStepDown"] {display: none;}
 </style>
 """, unsafe_allow_html=True)
 
-# ── sidebar ──────────────────────────────────────────────────────────
-with st.sidebar:
-    st.header("⚙️ Settings")
-    project_id = st.number_input("BrowserStack Project ID", value=22, step=1)
-    use_cache  = st.checkbox("Use Supabase Cache", value=True)
-    jql_query  = st.text_input("JQL Query or Filter ID",
-                               placeholder="e.g. project = PP AND sprint in openSprints()")
-    run = st.button("▶  Run Analysis", use_container_width=True, type="primary")
-    st.divider()
-    st.caption("Credentials are read from Streamlit Secrets.")
-
-# ── main ─────────────────────────────────────────────────────────────
 st.title("BrowserStack – Jira Mapping Dashboard")
 
-# initialise session state keys
+# ── controls inline at top ───────────────────────────────────────────
+col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+with col1:
+    project_id = st.number_input("Project ID", value=22, step=1, label_visibility="visible")
+with col2:
+    jql_query = st.text_input("JQL Query or Filter ID",
+                              placeholder="e.g. project = PP AND sprint in openSprints()")
+with col3:
+    use_cache = st.checkbox("Use Cache", value=True)
+with col4:
+    st.write("")  # vertical align
+    run = st.button("▶  Run Analysis", use_container_width=True, type="primary")
+
+st.divider()
+
+# ── session state ────────────────────────────────────────────────────
 for key in ("stats", "df_cmp", "jira_list", "results"):
     if key not in st.session_state:
         st.session_state[key] = None
@@ -46,7 +50,6 @@ if run:
 
     analyzer = BrowserStackJiraAnalyzer()
 
-    # progress placeholder for BS fetch
     bs_status = st.empty()
 
     def on_progress(page, total):
@@ -65,21 +68,20 @@ if run:
             st.error(f"Jira connection failed: {e}")
             jira_list = []
 
-    # persist to session state so download button doesn't wipe data
-    st.session_state.stats    = analyzer.get_stats()
-    st.session_state.df_cmp   = analyzer.compare_with_jira_query(jira_list)
+    st.session_state.stats     = analyzer.get_stats()
+    st.session_state.df_cmp    = analyzer.compare_with_jira_query(jira_list)
     st.session_state.jira_list = jira_list
-    st.session_state.results  = analyzer.results
+    st.session_state.results   = analyzer.results
 
-# ── render (uses session state so download button rerun is safe) ──────
+# ── render ───────────────────────────────────────────────────────────
 if st.session_state.stats is None:
-    st.info("👈 Enter your JQL query in the sidebar and click **Run Analysis** to begin.")
+    st.info("Enter your JQL query above and click **Run Analysis** to begin.")
     st.stop()
 
-stats    = st.session_state.stats
-df_cmp   = st.session_state.df_cmp
+stats     = st.session_state.stats
+df_cmp    = st.session_state.df_cmp
 jira_list = st.session_state.jira_list
-results  = st.session_state.results
+results   = st.session_state.results
 
 # ── BrowserStack KPIs ────────────────────────────────────────────────
 c1, c2, c3, c4, c5 = st.columns(5)
