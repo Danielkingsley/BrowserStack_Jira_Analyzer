@@ -234,8 +234,8 @@ st.divider()
 jira_col1, jira_col2, jira_col3 = st.columns([4, 1, 2])
 with jira_col1:
     st.subheader("Jira Comparison")
-with jira_col2:
-    show_jira = st.checkbox("Show Jira Comparison", value=True)
+# with jira_col2:
+#    show_jira = st.checkbox("Show Jira Comparison", value=True)
 
 if show_jira:
     if not jira_list:
