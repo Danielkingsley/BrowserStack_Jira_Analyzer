@@ -173,9 +173,10 @@ for key in ("stats", "df_cmp", "jira_list", "results", "unmapped_cases", "cache_
         st.session_state[key] = None
 
 if run:
-    if not jql_query.strip():
-        st.warning("Enable JQL is checked but no query was provided. Stopping...")
-        st.stop()
+    if use_jql:
+        if not jql_query.strip():
+            st.warning("Enable JQL is checked but no query was provided. Provide JQL query or filter to proceed...")
+            st.stop()
 
     analyzer  = BrowserStackJiraAnalyzer()
     bs_status = st.empty()
